@@ -1,6 +1,7 @@
 import scrapy
 from Naver_news.items import NaverNewsItem
 from datetime import datetime, timedelta
+import time
 import traceback
 import re
 
@@ -61,6 +62,7 @@ class NaverSpiderSpider(scrapy.Spider):
         
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse, meta={**response.meta})
+            #뉴스목록 페이지의 meta를 각 뉴스기사 페이지에 그대로전달 -> parse 안에서 위에서 설정해준 response.meta값 사용
 
         # 다음페이지
         page = response.meta.pop('page')# 현재 페이지 확인
@@ -69,39 +71,51 @@ class NaverSpiderSpider(scrapy.Spider):
         # 이전페이지, 마지막페이지 url비교하기 위해 urls도 meta로 넘김
         
     def parse(self, response):
+        item = NaverNewsItem()
+        # try:
+        item['id'] = response.url.split('/')[-1][:10]
+        item['platform'] = '네이버'
+        item['main_category'] = response.meta['sub_category']
+        item['sub_category'] = response.meta['main_category']
+        item['title'] = response.xpath('//*[@id="title_area"]/span/text()').extract()
+        # response.css('#title_area span::text').get().strip()
+        item['content'] = ' '.join(response.xpath('//*[@id="dic_area"]/text()').extract())
+        #response.css('#dic_area')[0].xpath('string(.)').extract()[0].strip()
         try:
-            id = response.url.split('/')[-1][:10]
-            platform = '네이버'
-            main_category = response.meta['sub_category']
-            sub_category = response.meta['main_category']
-            title = response.css('#title_area span::text').get().strip()
-            content = response.css('#dic_area')[0].xpath('string(.)').extract()[0].strip()
-            try:
-                writer = response.css('.byline_s::text').get().strip().split(' ')[0].split('(')[0].split(' ')[0]
-            except:
-                writer = ''
-            writed_at = response.css('.media_end_head_info_datestamp_time::attr(data-date-time)').get()
-            link = response.url
-            like = response.css('.u_likeit_text::text').get().strip()
-            comment = response.css('#comment_count::text').get().strip()
-            if like == '추천':
-                like = '0'
-            else:
-                pass
-            if comment == '댓글':
-                comment = '0'
-            else:
-                pass
-
-            with open('./news_contents/'+id+'.txt', 'w', encoding='utf-8') as f:
-                f.write(content)
-
-            datas = [id, platform, main_category, sub_category, title, writer, writed_at, link, like, comment]
-
-            with open('./meta_data.tsv', 'a', encoding='utf-8') as f:
-                f.write('\t'.join(map(str, datas)) + '\n')
-            
+            item['writer'] = response.css('.byline_s::text').get().strip().split(' ')[0].split('(')[0].split(' ')[0]
         except:
-            traceback.print_exc()
+            item['writer'] = ''
+        item['writed_at'] = response.css('.media_end_head_info_datestamp_time::attr(data-date-time)').get()
+        item['link'] = response.url
+        # like = response.css('.u_likeit_text::text').get().strip()
+        # comment = response.css('#comment_count::text').get().strip()
+        # if like == '추천':
+        #     like = '0'
+        # else:
+        #     pass
+        # if comment == '댓글':
+        #     comment = '0'
+        # else:
+        #     pass
+
+        # with open('./news_contents/'+id+'.txt', 'w', encoding='utf-8') as f:
+        #     f.write(content)
+
+        # datas = [id, platform, main_category, sub_category, title, writer, writed_at, link]
+
+        # with open('./meta_data.tsv', 'a', encoding='utf-8') as f:
+        #     f.write('\t'.join(map(str, datas)) + '\n')
+        if item['title'] == []:
             with open('error_urls', 'a') as f:
                 f.write(response.url + '\n')
+            return
+
+
+        yield item
+        # time.sleep(0.1)
+            
+        # except:
+        #     traceback.print_exc()
+        #     with open('error_urls', 'a') as f:
+        #         f.write(response.url + '\n')
+        #     return
