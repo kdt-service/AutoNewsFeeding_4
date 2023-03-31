@@ -5,6 +5,7 @@ def cleansingData(path):
     data = pd.read_csv(path, dtype=object, encoding='utf-8')
     print('데이터 불러오기 완료 :', len(data))
 
+    # 순서대로 \', 이메일, url, <>, [], (), 숫자, @~, ⓒ~, XXX 기자 제거
     regex = r'\\\''+'|'+r'\w+\@\w+\.\w+(\.\w{2})?'+'|'+r'(https?\:\/?\/?)?[가-힣\w\-]+\.[가-힣\w]+[^\s]*'+'|'+r'\<((?!\<).)*\>'+'|'+r'\[((?!\[).)*\]'+'|'+r'\(((?!\().)*\)'+'|'+r'\d+((?! ).)* ?원?'+'|'+r'[ⓒ@]((?! ).)*'+'|'+r'[가-힣]{3} ?기자'
     data['content'] = data['content'].apply(lambda x: re.sub(regex, '', x))
     data['content'] = data['content'].apply(lambda x: x.replace('\n', '').replace('\t', '').replace('\xa0', ''))    # \n, \t, \xa0 제거
